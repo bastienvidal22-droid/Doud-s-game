@@ -6,6 +6,47 @@ import time
 
 st.set_page_config(page_title="Doud's Game", page_icon="💿", layout="centered")
 
+# --- CSS INJECTION (Amélioration Esthétique) ---
+st.markdown("""
+<style>
+/* 1. Global Styling */
+body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+/* 2. Customizing Containers */
+.stAlert {
+    border-radius: 12px;
+    padding: 10px;
+    font-size: 1.1em;
+}
+
+/* 3. Main Container Styling (for the whole page) */
+div.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    max-width: 750px;
+}
+
+/* 4. Customizing the Success Messages */
+.stSuccess {
+    background-color: #0b2e1d !important; 
+    border-left: 5px solid #28a745 !important;
+}
+
+/* 5. Styling the Main Title */
+h1 {
+    text-align: center;
+    color: #FF5733; /* Couleur thème */
+    margin-bottom: 0.5rem;
+    font-size: 2.5em;
+    font-weight: 800;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
 # --- RECUPERATION DES SECRETS (Configuration Cloud) ---
 try:
     BIN_ID = st.secrets["BIN_ID"]
@@ -24,8 +65,7 @@ def load_playlist():
         response = requests.get(BASE_URL, headers=HEADERS)
         if response.status_code == 200:
             full_data = response.json().get("record", {})
-            # NOUVEAU : On extrait la liste de l'objet {"playlist_data": [...]}
-            # Retourne [] si l'objet ou la liste n'existe pas.
+            # On extrait la liste de l'objet {"playlist_data": [...]}
             return [item for item in full_data.get("playlist_data", []) if item.get('setup') != 'temp']
         else:
             st.error(f"Erreur de lecture Cloud (Code: {response.status_code}).")
@@ -36,7 +76,7 @@ def load_playlist():
     return []
 
 def save_playlist(new_playlist):
-    # NOUVEAU : On enveloppe la liste dans un objet pour satisfaire le serveur
+    # On enveloppe la liste dans un objet pour satisfaire le serveur (fix Code 400)
     payload = {"playlist_data": new_playlist}
     response = requests.put(BASE_URL, json=payload, headers=HEADERS)
     
@@ -60,8 +100,10 @@ if 'current_index' not in st.session_state:
     st.session_state.current_index = 0
 if 'my_last_add' not in st.session_state:
     st.session_state.my_last_add = None
+if 'last_user_name' not in st.session_state: # NOUVEAU: Pour le compteur individuel
+    st.session_state.last_user_name = None
 
-# --- SIDEBAR (LOGIQUE RAZ AMÉLIORÉE) ---
+# --- SIDEBAR (CONTRÔLES ADMINISTRATEUR) ---
 with st.sidebar:
     st.header("⚙️ Administrateur")
     password = st.text_input("Mot de passe Admin", type="password")
@@ -70,9 +112,8 @@ with st.sidebar:
     if is_host:
         st.success("Vous êtes administrateur")
         
-        # LOGIQUE DE RESET FINALISÉE (ENVOIE UNE LISTE VIDE)
         if st.button("🗑️ Réinitialiser la playlist"):
-            # Envoie une liste vide. La fonction save_playlist l'enveloppera dans un objet.
+            # Envoie une liste vide, enveloppée par save_playlist
             success = save_playlist([]) 
             
             if success:
@@ -93,7 +134,6 @@ playlist_brut = load_playlist()
 if isinstance(playlist_brut, dict):
     playlist = []
     current_count = 0
-    # On force la RAZ du Bin aussi pour que la prochaine lecture soit propre
     save_playlist([]) 
 else:
     playlist = playlist_brut
@@ -103,40 +143,76 @@ else:
 
 # === PHASE 1 : AJOUT ===
 if not st.session_state.game_started:
-    st.info(f"Playlist collaborative en ligne. Déjà {current_count} titres !") 
     
+    # MODIFICATION 1: Texte du compteur principal
+    st.markdown(f"""
+    <div style="text-align: center; background-color: #1E232A; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+        <p style="font-size: 1.2em; font-weight: bold; color: #FF5733; margin: 0;">
+            Actuellement {current_count} titres dans la playlist
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # MODIFICATION 2: Compteur individuel
+    if st.session_state.last_user_name:
+        my_name = st.session_state.last_user_name
+        my_count = len([t for t in playlist if t.get('user') == my_name])
+        
+        st.markdown(f"""
+        <div style="text-align: center; background-color: #2A1E35; padding: 10px; border-radius: 8px; margin-bottom: 25px;">
+            <p style="font-size: 1em; color: #ADD8E6; margin: 0;">
+                {my_name}, vous avez ajouté **{my_count}** titre{'s' if my_count > 1 else ''} !
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    
+    # --- Formulaire ---
     with st.form("ajout", clear_on_submit=True): 
-        c1, c2 = st.columns([1, 2])
         
-        with c1: name = st.text_input("Prénom", key="name_input")
-        with c2: link = st.text_input("Lien YouTube", key="link_input") 
+        st.markdown("### Ajouter votre Top Chansons :")
         
-        if st.form_submit_button("Rajouter à la Playlist 🚀"):
-            vid = extract_video_id(link)
-            
-            if name and link and vid: 
+        # Inputs alignés
+        col_name, col_link = st.columns([1, 2])
+        with col_name: name = st.text_input("Prénom", key="name_input")
+        with col_link: link = st.text_input("Lien YouTube", key="link_input") 
+        
+        # Bouton Submission centralisé
+        st.markdown("---")
+        c1, c2, c3 = st.columns([1, 2, 1])
+        with c2:
+            if st.form_submit_button("Rajouter à la Playlist 🚀", use_container_width=True):
+                vid = extract_video_id(link)
                 
-                entry = {"user": name, "id": vid, "link": link} 
-                playlist.append(entry)
-                
-                st.cache_data.clear()
-                
-                save_playlist(playlist)
-                st.session_state.my_last_add = entry
-                st.success("Sauvegardé !")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("Remplissez les deux champs avec un lien YouTube valide.")
+                if name and link and vid: 
+                    entry = {"user": name, "id": vid, "link": link} 
+                    playlist.append(entry)
+                    st.cache_data.clear()
+                    save_playlist(playlist)
+                    st.session_state.my_last_add = entry
+                    st.session_state.last_user_name = name # Sauvegarde du prénom pour le compteur
+                    st.success("Titre ajouté avec succès !")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("Veuillez vérifier le prénom et le lien YouTube.")
 
+
+    # --- Affichage du dernier ajout (non modifié) ---
     if st.session_state.my_last_add:
-        st.caption(f"Ton dernier ajout par {st.session_state.my_last_add['user']} : **{st.session_state.my_last_add['link']}**")
+        st.markdown(f"""
+        <div style="background-color: #0b2e1d; padding: 10px; border-radius: 8px; margin-top: 20px;">
+            <p style="color: #cccccc; font-size: 0.9em; margin: 0;">
+                ✅ Dernier ajout par **{st.session_state.my_last_add['user']}** : 
+                <span style="font-size: 0.8em;">{st.session_state.my_last_add['link']}</span>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
         
         if st.button("Annuler mon dernier ajout"):
             full = load_playlist()
             last = st.session_state.my_last_add
             new_list = [x for x in full if not (x.get('id') == last['id'] and x.get('user') == last['user'])]
-            
             st.cache_data.clear()
             save_playlist(new_list)
             st.session_state.my_last_add = None
@@ -144,11 +220,13 @@ if not st.session_state.game_started:
 
     if is_host and len(playlist) > 0:
         st.markdown("---")
-        if st.button("🚀 LANCER LA SOIRÉE", type="primary"):
-            st.session_state.shuffled_playlist = playlist.copy()
-            random.shuffle(st.session_state.shuffled_playlist)
-            st.session_state.game_started = True
-            st.rerun()
+        c1, c2, c3 = st.columns([1, 2, 1])
+        with c2:
+            if st.button("🚀 LANCER LA SOIRÉE", type="primary", use_container_width=True):
+                st.session_state.shuffled_playlist = playlist.copy()
+                random.shuffle(st.session_state.shuffled_playlist)
+                st.session_state.game_started = True
+                st.rerun()
 
 # === PHASE 2 : JEU ===
 else:
