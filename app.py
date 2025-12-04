@@ -59,7 +59,7 @@ if 'my_last_add' not in st.session_state:
 
 # --- SIDEBAR (LOGIQUE RAZ AMÉLIORÉE) ---
 with st.sidebar:
-    st.header("☁️ Zone Hôte")
+    st.header("⚙️ Administrateur")
     password = st.text_input("Mot de passe Admin", type="password")
     is_host = (password == "0510") 
     
