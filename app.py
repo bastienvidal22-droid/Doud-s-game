@@ -47,7 +47,7 @@ if 'current_index' not in st.session_state:
 if 'my_last_add' not in st.session_state:
     st.session_state.my_last_add = None
 
-# --- SIDEBAR (MODIFIÉE) ---
+# --- SIDEBAR (MODIFIÉE POUR UN RESET TOTAL) ---
 with st.sidebar:
     st.header("☁️ Zone Hôte")
     password = st.text_input("Mot de passe Admin", type="password")
@@ -56,13 +56,15 @@ with st.sidebar:
     if is_host:
         st.success("Connecté en tant que DJ !")
         
-        # MODIFICATION DU BOUTON RAZ POUR UN RESET TOTAL
+        # LOGIQUE DE RESET AMÉLIORÉE
         if st.button("🗑️ RAZ Playlist (Urgence)"):
-            save_playlist([])
-            st.session_state.game_started = False
-            st.session_state.my_last_add = None # Efface le dernier ajout
-            if 'shuffled_playlist' in st.session_state:
-                del st.session_state.shuffled_playlist # Efface la playlist mélangée
+            save_playlist([]) # 1. Vider le Cloud
+            
+            # 2. Vider TOUTES les variables de session pour un reset complet
+            for key in st.session_state.keys():
+                del st.session_state[key]
+                
+            # 3. Redémarrer l'application
             st.rerun()
 
 st.title("☁️ Blind Test Party")
@@ -131,8 +133,6 @@ if not st.session_state.game_started:
             st.session_state.game_started = True
             st.rerun()
             
-    # R: Le bouton 'Actualiser' a été supprimé
-
 # === PHASE 2 : JEU ===
 else:
     if not is_host:
