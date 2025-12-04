@@ -17,9 +17,10 @@ except:
 BASE_URL = f"https://api.jsonbin.io/v3/b/{BIN_ID}"
 HEADERS = {"X-Master-Key": API_KEY, "Content-Type": "application/json"}
 
-# --- FONCTIONS CLOUD ---
+# --- FONCTIONS CLOUD (AVEC GESTION DU CACHE) ---
+# On utilise st.cache_data pour éviter de surcharger l'API de JSONBin à chaque interaction
+@st.cache_data(ttl=5) # Met les données en cache pour 5 secondes max
 def load_playlist():
-    # Charge les données depuis JSONBin
     try:
         response = requests.get(BASE_URL, headers=HEADERS)
         if response.status_code == 200:
@@ -43,7 +44,7 @@ def extract_video_id(url):
 if 'game_started' not in st.session_state:
     st.session_state.game_started = False
 if 'current_index' not in st.session_state:
-    st.session_state.current_index = 0
+    st.session_session_state.current_index = 0
 if 'my_last_add' not in st.session_state:
     st.session_state.my_last_add = None
 
@@ -51,20 +52,22 @@ if 'my_last_add' not in st.session_state:
 with st.sidebar:
     st.header("☁️ Zone Hôte")
     password = st.text_input("Mot de passe Admin", type="password")
-    is_host = (password == "1234") # <--- Change ton mot de passe ici si tu veux
+    is_host = (password == "1234") 
     
     if is_host:
         st.success("Connecté en tant que DJ !")
         
-        # LOGIQUE DE RESET AMÉLIORÉE
+        # LOGIQUE DE RESET AMÉLIORÉE (VIDAGE DU CACHE)
         if st.button("🗑️ RAZ Playlist (Urgence)"):
-            save_playlist([]) # 1. Vider le Cloud
+            save_playlist([]) 
             
-            # 2. Vider TOUTES les variables de session pour un reset complet
+            # Vider le cache de la fonction load_playlist()
+            st.cache_data.clear() 
+            
+            # Vider TOUTES les variables de session et redémarrer
             for key in st.session_state.keys():
                 del st.session_state[key]
                 
-            # 3. Redémarrer l'application
             st.rerun()
 
 st.title("☁️ Blind Test Party")
@@ -77,6 +80,7 @@ playlist_brut = load_playlist()
 if isinstance(playlist_brut, dict):
     playlist = []
     current_count = 0
+    # On force la RAZ du Bin aussi pour que la prochaine lecture soit propre
     save_playlist([]) 
 else:
     playlist = playlist_brut
@@ -105,6 +109,9 @@ if not st.session_state.game_started:
                 entry = {"user": name, "id": vid, "link": link} 
                 playlist.append(entry)
                 
+                # Vider le cache avant l'écriture pour garantir une lecture fraîche au prochain load
+                st.cache_data.clear()
+                
                 save_playlist(playlist)
                 st.session_state.my_last_add = entry
                 st.success("Sauvegardé !")
@@ -114,13 +121,14 @@ if not st.session_state.game_started:
                 st.error("Remplissez les deux champs avec un lien YouTube valide.")
 
     if st.session_state.my_last_add:
-        # La confirmation affiche le lien YouTube
         st.caption(f"Ton dernier ajout par {st.session_state.my_last_add['user']} : **{st.session_state.my_last_add['link']}**")
         
         if st.button("Annuler mon dernier ajout"):
             full = load_playlist()
             last = st.session_state.my_last_add
             new_list = [x for x in full if not (x.get('id') == last['id'] and x.get('user') == last['user'])]
+            
+            st.cache_data.clear()
             save_playlist(new_list)
             st.session_state.my_last_add = None
             st.rerun()
@@ -132,7 +140,7 @@ if not st.session_state.game_started:
             random.shuffle(st.session_state.shuffled_playlist)
             st.session_state.game_started = True
             st.rerun()
-            
+
 # === PHASE 2 : JEU ===
 else:
     if not is_host:
