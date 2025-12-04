@@ -17,14 +17,14 @@ except:
 BASE_URL = f"https://api.jsonbin.io/v3/b/{BIN_ID}"
 HEADERS = {"X-Master-Key": API_KEY, "Content-Type": "application/json"}
 
-# --- FONCTIONS CLOUD (AVEC FILTRAGE DU MARQUEUR DE RESET) ---
+# --- FONCTIONS CLOUD ---
 @st.cache_data(ttl=5) # Met les données en cache pour 5 secondes max
 def load_playlist():
     try:
         response = requests.get(BASE_URL, headers=HEADERS)
         if response.status_code == 200:
             full_list = response.json().get("record", [])
-            # NOUVEAU : On filtre l'entrée de reset si elle existe
+            # On filtre l'entrée de reset si elle existe
             return [item for item in full_list if item.get('reset') != True]
         else:
             st.error(f"Erreur de lecture Cloud (Code: {response.status_code}).")
@@ -35,15 +35,19 @@ def load_playlist():
     return []
 
 def save_playlist(new_playlist):
-    # Enregistre la playlist sur le cloud
     response = requests.put(BASE_URL, json=new_playlist, headers=HEADERS)
-    
-    # Retourne True si succès (200, 201, 204), False sinon
     if response.status_code not in [200, 201, 204]:
         st.error(f"❌ ÉCHEC DE SAUVEGARDE (Code: {response.status_code}).")
         st.warning("Vérifiez la Master Key sur JSONBin. (Code 403 = Droits refusés)")
         return False
     return True
+
+def extract_video_id(url):
+    if not url: return None
+    if "shorts/" in url: return url.split("shorts/")[1].split("?")[0]
+    elif "youtu.be/" in url: return url.split("youtu.be/")[1].split("?")[0]
+    elif "v=" in url: return url.split("v=")[1].split("&")[0]
+    return None
 
 # --- STATE ---
 if 'game_started' not in st.session_state:
@@ -53,7 +57,7 @@ if 'current_index' not in st.session_state:
 if 'my_last_add' not in st.session_state:
     st.session_state.my_last_add = None
 
-# --- SIDEBAR (LOGIQUE RAZ CONTOURNÉE) ---
+# --- SIDEBAR (LOGIQUE RAZ AMÉLIORÉE) ---
 with st.sidebar:
     st.header("☁️ Zone Hôte")
     password = st.text_input("Mot de passe Admin", type="password")
@@ -62,23 +66,19 @@ with st.sidebar:
     if is_host:
         st.success("Connecté en tant que DJ !")
         
-        # Le code d'effacement est conditionnel
+        # LOGIQUE DE RESET AMÉLIORÉE (AVEC COOLDOWN)
         if st.button("🗑️ RAZ Playlist (Urgence)"):
             
-            # NOUVEAU : Envoie une liste non-vide (pour éviter le Code 400) mais vide de titres.
+            # Tente de sauvegarder la liste non-vide (pour éviter le 400)
             success = save_playlist([{"reset": True}]) 
             
             if success:
-                # Si la sauvegarde a réussi (Code 200/201), on vide TOUT
                 st.cache_data.clear() 
                 for key in st.session_state.keys():
-                    # On évite de supprimer le mot de passe s'il est utilisé comme key dans session_state
-                    if key not in ['password']: 
-                        del st.session_state[key]
+                    del st.session_state[key]
                 st.rerun()
             else:
-                # Si la sauvegarde a échoué (Code 400, 429 ou 403), on laisse l'erreur s'afficher.
-                pass 
+                pass # Laisse l'erreur 400 ou 429 s'afficher pour que l'utilisateur attende
 
 st.title("☁️ Blind Test Party")
 
@@ -90,36 +90,34 @@ playlist_brut = load_playlist()
 if isinstance(playlist_brut, dict):
     playlist = []
     current_count = 0
-    # On force la RAZ du Bin aussi pour que la prochaine lecture soit propre
-    save_playlist([]) 
+    save_playlist([{"reset": True}]) # On force le Bin à être une liste non-vide/valide
 else:
     playlist = playlist_brut
     current_count = len(playlist)
 # -------------------------------------------------------------
 
 
-# === PHASE 1 : AJOUT ===
+# === PHASE 1 : AJOUT (CORRIGÉE : ENLÈVEMENT DE :=) ===
 if not st.session_state.game_started:
     st.info(f"Playlist collaborative en ligne. Déjà {current_count} titres !") 
     
-    # On utilise clear_on_submit=True
     with st.form("ajout", clear_on_submit=True): 
         c1, c2 = st.columns([1, 2])
         
-        # Le prénom n'est plus pré-rempli pour des raisons de session
         with c1: name = st.text_input("Prénom", key="name_input")
-        
-        # Le lien sera effacé automatiquement
         with c2: link = st.text_input("Lien YouTube", key="link_input") 
         
         if st.form_submit_button("Rajouter à la Playlist 🚀"):
-            if name and link and (vid := extract_video_id(link)):
+            
+            # NOUVELLE LOGIQUE D'EXTRACTION (GARANTIE DE FONCTIONNEMENT)
+            vid = extract_video_id(link)
+            
+            # On vérifie si les variables sont remplies et si l'ID a été extrait
+            if name and link and vid: 
                 
-                # On sauvegarde le nom ET le lien pour l'affichage de confirmation
                 entry = {"user": name, "id": vid, "link": link} 
                 playlist.append(entry)
                 
-                # Vider le cache avant l'écriture pour garantir une lecture fraîche au prochain load
                 st.cache_data.clear()
                 
                 save_playlist(playlist)
@@ -197,11 +195,3 @@ else:
                 st.session_state.game_started = False
                 st.session_state.current_index = 0
                 st.rerun()
-
-# --- FONCTION D'EXTRACTION YOUTUBE (non modifiée) ---
-def extract_video_id(url):
-    if not url: return None
-    if "shorts/" in url: return url.split("shorts/")[1].split("?")[0]
-    elif "youtu.be/" in url: return url.split("youtu.be/")[1].split("?")[0]
-    elif "v=" in url: return url.split("v=")[1].split("&")[0]
-    return None
