@@ -4,7 +4,7 @@ import random
 import requests
 import time
 
-st.set_page_config(page_title="Blind Test Cloud", page_icon="☁️", layout="centered")
+st.set_page_config(page_title="Doud's Game", page_icon="💿", layout="centered")
 
 # --- RECUPERATION DES SECRETS (Configuration Cloud) ---
 try:
@@ -61,13 +61,13 @@ if 'my_last_add' not in st.session_state:
 with st.sidebar:
     st.header("☁️ Zone Hôte")
     password = st.text_input("Mot de passe Admin", type="password")
-    is_host = (password == "1234") 
+    is_host = (password == "0510") 
     
     if is_host:
-        st.success("Connecté en tant que DJ !")
+        st.success("Vous êtes administrateur")
         
         # LOGIQUE DE RESET AMÉLIORÉE (AVEC COOLDOWN)
-        if st.button("🗑️ RAZ Playlist (Urgence)"):
+        if st.button("🗑️ Réinitialiser la playlist"):
             
             # Tente de sauvegarder la liste non-vide (pour éviter le 400)
             success = save_playlist([{"reset": True}]) 
@@ -80,7 +80,7 @@ with st.sidebar:
             else:
                 pass # Laisse l'erreur 400 ou 429 s'afficher pour que l'utilisateur attende
 
-st.title("☁️ Blind Test Party")
+st.title("💿 Doud's Game")
 
 # -------------------------------------------------------------
 # LOGIQUE DE COMPTAGE 
