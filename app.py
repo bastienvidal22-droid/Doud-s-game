@@ -237,18 +237,18 @@ if not st.session_state.game_started:
             is_game_paused = (st.session_state.shuffled_playlist and st.session_state.current_index > 0)
             
             if is_game_paused:
-                st.markdown("### Reprendre la Soirée")
+                st.markdown("### Reprendre")
                 st.info(f"Une partie est en pause. Vous étiez à la piste **{st.session_state.current_index + 1}** sur **{len(st.session_state.shuffled_playlist)}**.")
                 
                 col_resume, col_restart = st.columns(2)
                 
                 with col_resume:
-                    if st.button("▶️ REPRENDRE LA SOIRÉE", type="primary", use_container_width=True):
+                    if st.button("▶️ REPRENDRE", type="primary", use_container_width=True):
                         st.session_state.game_started = True
                         st.rerun()
                         
                 with col_restart:
-                    if st.button("🔄 RECOMMENCER DE 0", use_container_width=True):
+                    if st.button("🔄 RECOMMENCER", use_container_width=True):
                         st.session_state.current_index = 0
                         st.session_state.game_started = True
                         st.rerun()
@@ -257,7 +257,7 @@ if not st.session_state.game_started:
                 # Si la partie n'a jamais été commencée ou a été terminée
                 c1, c2, c3 = st.columns([1, 2, 1])
                 with c2:
-                    if st.button("🚀 LANCER LA SOIRÉE", type="primary", use_container_width=True):
+                    if st.button("🚀 LANCER LE GAME", type="primary", use_container_width=True):
                         st.session_state.shuffled_playlist = playlist.copy()
                         random.shuffle(st.session_state.shuffled_playlist)
                         st.session_state.game_started = True
