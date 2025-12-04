@@ -146,7 +146,7 @@ else:
 # -------------------------------------------------------------
 
 
-# === PHASE 1 : AJOUT/LANCEMENT (LOGIQUE REPRISE) ===
+# === PHASE 1 : AJOUT ===
 if not st.session_state.game_started:
     
     # Boîte d'information centrale pour le compteur
@@ -234,7 +234,6 @@ if not st.session_state.game_started:
         if is_host and len(playlist) > 0:
             st.markdown("---")
             
-            # CONDITION POUR SAVOIR SI ON A FAIT AU MOINS UNE CHANSON DANS LA PARTIE
             is_game_paused = (st.session_state.shuffled_playlist and st.session_state.current_index > 0)
             
             if is_game_paused:
@@ -250,7 +249,6 @@ if not st.session_state.game_started:
                         
                 with col_restart:
                     if st.button("🔄 RECOMMENCER DE 0", use_container_width=True):
-                        # On garde la playlist mélangée, on réinitialise juste l'index
                         st.session_state.current_index = 0
                         st.session_state.game_started = True
                         st.rerun()
@@ -271,8 +269,7 @@ else:
     if not is_host:
         st.warning("Regardez l'écran géant (Ordi de l'hôte) !")
     else:
-        # Initialisation de la playlist mélangée
-        if not st.session_state.shuffled_playlist:
+        if 'shuffled_playlist' not in st.session_state:
              st.session_state.shuffled_playlist = playlist.copy()
              random.shuffle(st.session_state.shuffled_playlist)
              
@@ -305,17 +302,17 @@ else:
             """
             components.html(html_code, height=480)
             
-            # --- Boutons Suivant et Revenir au menu (ratio 1:2) ---
-            col_back, col_next = st.columns([1, 2])
+            # --- Boutons Suivant et Revenir au menu (MODIFIÉ : Ratio 3:1 et inversion) ---
+            col_next, col_back = st.columns([3, 1])
             
-            with col_back:
-                if st.button("⏪ REVENIR AU MENU", use_container_width=True):
-                    st.session_state.game_started = False
-                    st.rerun()
-
             with col_next:
                 if st.button("⏭️ SUIVANT", type="primary", use_container_width=True):
                     st.session_state.current_index += 1
+                    st.rerun()
+
+            with col_back:
+                if st.button("⏪ REVENIR AU MENU", use_container_width=True):
+                    st.session_state.game_started = False
                     st.rerun()
         else:
             st.balloons()
