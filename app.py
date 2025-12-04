@@ -25,7 +25,14 @@ h1 {
     font-weight: 800;
 }
 
-/* 3. Style for Registration Box */
+/* 3. Main Container Styling (Moins de padding en haut pour remonter le titre) */
+div.block-container {
+    padding-top: 1rem; /* Modifié de 2rem à 1rem */
+    padding-bottom: 2rem;
+    max-width: 750px;
+}
+
+/* 4. Style for Registration Box */
 .registration-box {
     background-color: #2A1E35; 
     padding: 20px; 
@@ -55,6 +62,7 @@ def load_playlist():
         response = requests.get(BASE_URL, headers=HEADERS)
         if response.status_code == 200:
             full_data = response.json().get("record", {})
+            # On extrait la liste de l'objet {"playlist_data": [...]}
             return [item for item in full_data.get("playlist_data", []) if item.get('setup') != 'temp']
         else:
             st.error(f"Erreur de lecture Cloud (Code: {response.status_code}).")
@@ -65,6 +73,7 @@ def load_playlist():
     return []
 
 def save_playlist(new_playlist):
+    # On enveloppe la liste dans un objet pour satisfaire le serveur (fix Code 400)
     payload = {"playlist_data": new_playlist}
     response = requests.put(BASE_URL, json=payload, headers=HEADERS)
     if response.status_code not in [200, 201, 204]:
@@ -89,7 +98,7 @@ if 'my_last_add' not in st.session_state:
     st.session_state.my_last_add = None
 if 'last_user_name' not in st.session_state:
     st.session_state.last_user_name = None
-if 'registered_user_name' not in st.session_state: # NOUVEAU: Nom permanent pour la session
+if 'registered_user_name' not in st.session_state:
     st.session_state.registered_user_name = None
 
 # --- SIDEBAR (CONTRÔLES ADMINISTRATEUR) ---
@@ -162,7 +171,7 @@ if not st.session_state.game_started:
         
         st.markdown(f"### Bienvenue, **{user_name}** ! 👋")
         
-        # MODIFICATION 2: Compteur individuel
+        # Compteur individuel
         if user_name:
             my_count = len([t for t in playlist if t.get('user') == user_name])
             st.markdown(f"""
@@ -187,12 +196,12 @@ if not st.session_state.game_started:
                     vid = extract_video_id(link)
                     
                     if link and vid: 
-                        entry = {"user": user_name, "id": vid, "link": link} # Nom pris dans la session
+                        entry = {"user": user_name, "id": vid, "link": link}
                         playlist.append(entry)
                         st.cache_data.clear()
                         save_playlist(playlist)
                         st.session_state.my_last_add = entry
-                        st.session_state.last_user_name = user_name # Met à jour le nom pour l'affichage
+                        st.session_state.last_user_name = user_name
                         st.success("Titre ajouté avec succès !")
                         time.sleep(1)
                         st.rerun()
@@ -224,8 +233,7 @@ if not st.session_state.game_started:
                     st.session_state.game_started = True
                     st.rerun()
 
-# === PHASE 2 : JEU ===
-# ... (Le reste du code de jeu n'a pas changé) ...
+# === PHASE 2 : JEU (Améliorations UI/UX du jeu) ===
 else:
     if not is_host:
         st.warning("Regardez l'écran géant (Ordi de l'hôte) !")
@@ -257,13 +265,22 @@ else:
             </div>
             <div id="rep">C'est {track['user']} !</div>
             """
-            components.html(html_code, height=500)
+            # Réduit la hauteur pour rapprocher le bouton "Suivant"
+            components.html(html_code, height=450) 
+            
+            # --- Boutons Suivant et Revenir au menu (nouvelle disposition) ---
+            col_back, col_next = st.columns(2)
+            
+            with col_back:
+                if st.button("⏪ REVENIR AU MENU", use_container_width=True):
+                    st.session_state.game_started = False
+                    st.rerun()
 
-            col1, col2, col3 = st.columns([1,2,1])
-            with col2:
+            with col_next:
                 if st.button("⏭️ SUIVANT", type="primary", use_container_width=True):
                     st.session_state.current_index += 1
                     st.rerun()
+            
         else:
             st.balloons()
             st.success("Playlist terminée !")
