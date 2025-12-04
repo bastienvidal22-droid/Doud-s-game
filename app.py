@@ -46,9 +46,8 @@ if 'current_index' not in st.session_state:
     st.session_state.current_index = 0
 if 'my_last_add' not in st.session_state:
     st.session_state.my_last_add = None
-# R: On retire 'last_submitted_name' pour des raisons de sécurité/session.
 
-# --- SIDEBAR ---
+# --- SIDEBAR (MODIFIÉE) ---
 with st.sidebar:
     st.header("☁️ Zone Hôte")
     password = st.text_input("Mot de passe Admin", type="password")
@@ -56,9 +55,14 @@ with st.sidebar:
     
     if is_host:
         st.success("Connecté en tant que DJ !")
+        
+        # MODIFICATION DU BOUTON RAZ POUR UN RESET TOTAL
         if st.button("🗑️ RAZ Playlist (Urgence)"):
             save_playlist([])
             st.session_state.game_started = False
+            st.session_state.my_last_add = None # Efface le dernier ajout
+            if 'shuffled_playlist' in st.session_state:
+                del st.session_state.shuffled_playlist # Efface la playlist mélangée
             st.rerun()
 
 st.title("☁️ Blind Test Party")
@@ -78,24 +82,24 @@ else:
 # -------------------------------------------------------------
 
 
-# === PHASE 1 : AJOUT (MODIFIÉE) ===
+# === PHASE 1 : AJOUT ===
 if not st.session_state.game_started:
     st.info(f"Playlist collaborative en ligne. Déjà {current_count} titres !") 
     
-    # clear_on_submit=True efface tout, y compris le nom. 
-    # Le nom ne reste plus pré-rempli pour des raisons de confidentialité.
+    # On utilise clear_on_submit=True
     with st.form("ajout", clear_on_submit=True): 
         c1, c2 = st.columns([1, 2])
         
-        # R: Le prénom n'est plus pré-rempli
+        # Le prénom n'est plus pré-rempli pour des raisons de session
         with c1: name = st.text_input("Prénom", key="name_input")
         
+        # Le lien sera effacé automatiquement
         with c2: link = st.text_input("Lien YouTube", key="link_input") 
         
         if st.form_submit_button("Rajouter à la Playlist 🚀"):
             if name and link and (vid := extract_video_id(link)):
                 
-                # R: On sauvegarde le nom ET le lien pour l'affichage de confirmation
+                # On sauvegarde le nom ET le lien pour l'affichage de confirmation
                 entry = {"user": name, "id": vid, "link": link} 
                 playlist.append(entry)
                 
@@ -108,7 +112,7 @@ if not st.session_state.game_started:
                 st.error("Remplissez les deux champs avec un lien YouTube valide.")
 
     if st.session_state.my_last_add:
-        # R: La confirmation affiche le lien YouTube (plus clair que le nom ou l'ID)
+        # La confirmation affiche le lien YouTube
         st.caption(f"Ton dernier ajout par {st.session_state.my_last_add['user']} : **{st.session_state.my_last_add['link']}**")
         
         if st.button("Annuler mon dernier ajout"):
@@ -127,8 +131,7 @@ if not st.session_state.game_started:
             st.session_state.game_started = True
             st.rerun()
             
-    if st.button("🔄 Actualiser"):
-        st.rerun()
+    # R: Le bouton 'Actualiser' a été supprimé
 
 # === PHASE 2 : JEU ===
 else:
