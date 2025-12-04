@@ -144,7 +144,7 @@ else:
 # -------------------------------------------------------------
 
 
-# === PHASE 1 : AJOUT (UX AMÉLIORÉE) ===
+# === PHASE 1 : AJOUT ===
 if not st.session_state.game_started:
     
     # Boîte d'information centrale pour le compteur
@@ -262,19 +262,22 @@ else:
                 iframe {{ width: 100%; height: 100%; border: 0; filter: blur(40px); transform: scale(1.1); transition: filter 0.8s; }}
                 .btn {{ background: #333; color: white; border: 1px solid #555; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; margin: 5px; }}
                 .btn:hover {{ background: #444; }}
-                #rep {{ text-align: center; font-size: 2em; font-weight: bold; color: #4CAF50; margin-top: 15px; padding-bottom: 15px; }}
+                #rep {{ 
+                    text-align: center; font-size: 2em; font-weight: bold; color: #4CAF50; 
+                    margin-top: 15px; padding-bottom: 15px; 
+                    opacity: 0; transition: opacity 1s; 
+                }}
             </style>
             <div class="wrapper"><iframe id="vid" src="{embed_url}" allow="autoplay; encrypted-media"></iframe></div>
             <div style="text-align:center;">
                 <button class="btn" onclick="document.getElementById('vid').style.filter='blur(0px)'">👁️ TITRE</button>
                 <button class="btn" onclick="document.getElementById('rep').style.opacity='1'">👤 QUI ?</button>
             </div>
-            <div id="rep">C'est {track['user']} !</div>
+            <div id="rep" style="opacity: 0;">C'est {track['user']} !</div>
             """
-            components.html(html_code, height=480) # Hauteur de 480 pour accommodation
+            components.html(html_code, height=480)
             
-            # --- Boutons Suivant et Revenir au menu (MODIFIÉ) ---
-            # Ratio 33% (Back) / 66% (Next)
+            # --- Boutons Suivant et Revenir au menu ---
             col_back, col_next = st.columns([1, 2])
             
             with col_back:
