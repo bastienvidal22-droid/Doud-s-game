@@ -46,8 +46,7 @@ if 'current_index' not in st.session_state:
     st.session_state.current_index = 0
 if 'my_last_add' not in st.session_state:
     st.session_state.my_last_add = None
-if 'last_submitted_name' not in st.session_state:
-    st.session_state.last_submitted_name = '' # Sauvegarde le prénom ici
+# R: On retire 'last_submitted_name' pour des raisons de sécurité/session.
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -79,28 +78,25 @@ else:
 # -------------------------------------------------------------
 
 
-# === PHASE 1 : AJOUT ===
+# === PHASE 1 : AJOUT (MODIFIÉE) ===
 if not st.session_state.game_started:
-    # Le st.info utilise maintenant le nouveau 'current_count'
     st.info(f"Playlist collaborative en ligne. Déjà {current_count} titres !") 
     
-    # On utilise clear_on_submit=True et on passe le dernier nom en 'value'
+    # clear_on_submit=True efface tout, y compris le nom. 
+    # Le nom ne reste plus pré-rempli pour des raisons de confidentialité.
     with st.form("ajout", clear_on_submit=True): 
         c1, c2 = st.columns([1, 2])
         
-        # Le nom est pré-rempli avec la dernière valeur soumise
-        with c1: name = st.text_input("Prénom", value=st.session_state.last_submitted_name, key="name_input")
+        # R: Le prénom n'est plus pré-rempli
+        with c1: name = st.text_input("Prénom", key="name_input")
         
-        # Le lien sera effacé automatiquement
         with c2: link = st.text_input("Lien YouTube", key="link_input") 
         
         if st.form_submit_button("Rajouter à la Playlist 🚀"):
             if name and link and (vid := extract_video_id(link)):
                 
-                # IMPORTANT : On sauvegarde le nom soumis pour le prochain formulaire
-                st.session_state.last_submitted_name = name 
-                
-                entry = {"user": name, "id": vid}
+                # R: On sauvegarde le nom ET le lien pour l'affichage de confirmation
+                entry = {"user": name, "id": vid, "link": link} 
                 playlist.append(entry)
                 
                 save_playlist(playlist)
@@ -112,7 +108,9 @@ if not st.session_state.game_started:
                 st.error("Remplissez les deux champs avec un lien YouTube valide.")
 
     if st.session_state.my_last_add:
-        st.caption(f"Ton dernier ajout : {st.session_state.my_last_add['user']}")
+        # R: La confirmation affiche le lien YouTube (plus clair que le nom ou l'ID)
+        st.caption(f"Ton dernier ajout par {st.session_state.my_last_add['user']} : **{st.session_state.my_last_add['link']}**")
+        
         if st.button("Annuler mon dernier ajout"):
             full = load_playlist()
             last = st.session_state.my_last_add
@@ -121,7 +119,6 @@ if not st.session_state.game_started:
             st.session_state.my_last_add = None
             st.rerun()
 
-    # Le bouton de lancement utilise len(playlist) qui est maintenant nettoyé
     if is_host and len(playlist) > 0:
         st.markdown("---")
         if st.button("🚀 LANCER LA SOIRÉE", type="primary"):
