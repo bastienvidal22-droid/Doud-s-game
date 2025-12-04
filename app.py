@@ -106,6 +106,8 @@ if 'last_user_name' not in st.session_state:
     st.session_state.last_user_name = None
 if 'registered_user_name' not in st.session_state:
     st.session_state.registered_user_name = None
+if 'shuffled_playlist' not in st.session_state: # Initialisation de la playlist mélangée
+    st.session_state.shuffled_playlist = []
 
 # --- SIDEBAR (CONTRÔLES ADMINISTRATEUR) ---
 with st.sidebar:
@@ -121,6 +123,7 @@ with st.sidebar:
             
             if success:
                 st.cache_data.clear() 
+                # On réinitialise l'état local du jeu après une suppression
                 for key in st.session_state.keys():
                     del st.session_state[key]
                 st.rerun()
@@ -144,7 +147,7 @@ else:
 # -------------------------------------------------------------
 
 
-# === PHASE 1 : AJOUT ===
+# === PHASE 1 : AJOUT/LANCEMENT ===
 if not st.session_state.game_started:
     
     # Boîte d'information centrale pour le compteur
@@ -171,7 +174,7 @@ if not st.session_state.game_started:
                     st.warning("Veuillez entrer votre prénom.")
         st.markdown("</div>", unsafe_allow_html=True)
         
-    # --- BLOC 2: SOUMISSION DES LIENS ---
+    # --- BLOC 2: SOUMISSION DES LIENS / LANCEMENT DU JEU ---
     else:
         user_name = st.session_state.registered_user_name
         
@@ -228,23 +231,47 @@ if not st.session_state.game_started:
                 st.session_state.my_last_add = None
                 st.rerun()
                 
-        # --- Bouton de lancement ---
+        # --- Bouton de lancement (NOUVELLE LOGIQUE) ---
         if is_host and len(playlist) > 0:
             st.markdown("---")
-            c1, c2, c3 = st.columns([1, 2, 1])
-            with c2:
-                if st.button("🚀 LANCER LA SOIRÉE", type="primary", use_container_width=True):
-                    st.session_state.shuffled_playlist = playlist.copy()
-                    random.shuffle(st.session_state.shuffled_playlist)
-                    st.session_state.game_started = True
-                    st.rerun()
+            
+            is_game_paused = (st.session_state.shuffled_playlist and st.session_state.current_index > 0)
+            
+            if is_game_paused:
+                st.markdown("### Reprendre la Soirée")
+                st.info(f"Une partie est en pause. Vous étiez à la piste **{st.session_state.current_index + 1}** sur **{len(st.session_state.shuffled_playlist)}**.")
+                
+                col_resume, col_restart = st.columns(2)
+                
+                with col_resume:
+                    if st.button("▶️ REPRENDRE LA SOIRÉE", type="primary", use_container_width=True):
+                        st.session_state.game_started = True
+                        st.rerun()
+                        
+                with col_restart:
+                    if st.button("🔄 RECOMMENCER DE 0", use_container_width=True):
+                        st.session_state.current_index = 0
+                        st.session_state.game_started = True
+                        st.rerun()
+
+            else:
+                # Si la partie n'a jamais été commencée ou a été terminée
+                c1, c2, c3 = st.columns([1, 2, 1])
+                with c2:
+                    if st.button("🚀 LANCER LA SOIRÉE", type="primary", use_container_width=True):
+                        st.session_state.shuffled_playlist = playlist.copy()
+                        random.shuffle(st.session_state.shuffled_playlist)
+                        st.session_state.game_started = True
+                        st.session_state.current_index = 0
+                        st.rerun()
 
 # === PHASE 2 : JEU ===
 else:
     if not is_host:
         st.warning("Regardez l'écran géant (Ordi de l'hôte) !")
     else:
-        if 'shuffled_playlist' not in st.session_state:
+        # Assurez-vous que la playlist est bien là (nécessaire après un redémarrage de session)
+        if not st.session_state.shuffled_playlist:
              st.session_state.shuffled_playlist = playlist.copy()
              random.shuffle(st.session_state.shuffled_playlist)
              
@@ -275,12 +302,13 @@ else:
             </div>
             <div id="rep" style="opacity: 0;">C'est {track['user']} !</div>
             """
-            components.html(html_code, height=480)
+            components.html(html_code, height=480) 
             
-            # --- Boutons Suivant et Revenir au menu ---
+            # --- Boutons Suivant et Revenir au menu (ratio 1:2) ---
             col_back, col_next = st.columns([1, 2])
             
             with col_back:
+                # MODIFICATION ICI : On revient au menu sans réinitialiser l'index
                 if st.button("⏪ REVENIR AU MENU", use_container_width=True):
                     st.session_state.game_started = False
                     st.rerun()
@@ -294,5 +322,5 @@ else:
             st.success("Playlist terminée !")
             if st.button("Recommencer"):
                 st.session_state.game_started = False
-                st.session_state.current_index = 0
+                st.session_state.current_index = 0 # Réinitialise l'index
                 st.rerun()
