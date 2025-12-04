@@ -44,7 +44,7 @@ def extract_video_id(url):
 if 'game_started' not in st.session_state:
     st.session_state.game_started = False
 if 'current_index' not in st.session_state:
-    st.session_session_state.current_index = 0
+    st.session_state.current_index = 0
 if 'my_last_add' not in st.session_state:
     st.session_state.my_last_add = None
 
