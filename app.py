@@ -233,4 +233,35 @@ else:
             # Code HTML/JS pour le No-Cut (Fluidité maximale)
             html_code = f"""
             <style>
-                .wrapper {{ width: 100%; height: 350px; background: #000; border-radius: 15px; overflow: hidden; margin-bottom: 15px; box-shadow: 0 4px 1
+                .wrapper {{ width: 100%; height: 350px; background: #000; border-radius: 15px; overflow: hidden; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }}
+                iframe {{ width: 100%; height: 100%; border: 0; filter: blur(40px); transform: scale(1.1); transition: filter 0.8s; }}
+                .btn-game {{ 
+                    background: #FF5733; color: white; border: none; 
+                    padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; margin: 5px; 
+                    box-shadow: 0 3px 5px rgba(0,0,0,0.3); transition: background 0.3s;
+                }}
+                .btn-game:hover {{ background: #CC4422; }}
+                #rep {{ text-align: center; font-size: 2em; font-weight: bold; color: #4CAF50; margin-top: 15px; opacity: 0; transition: opacity 1s; }}
+            </style>
+            <div class="wrapper"><iframe id="vid" src="{embed_url}" allow="autoplay; encrypted-media"></iframe></div>
+            
+            <div style="text-align:center;">
+                <button class="btn-game" onclick="document.getElementById('vid').style.filter='blur(0px)'">👁️ TITRE</button>
+                <button class="btn-game" onclick="document.getElementById('rep').style.opacity='1'">👤 QUI ?</button>
+            </div>
+            <div id="rep">C'est {track['user']} !</div>
+            """
+            components.html(html_code, height=550)
+
+            col1, col2, col3 = st.columns([1,2,1])
+            with col2:
+                if st.button("⏭️ SUIVANT", type="primary", use_container_width=True):
+                    st.session_state.current_index += 1
+                    st.rerun()
+        else:
+            st.balloons()
+            st.success("Playlist terminée !")
+            if st.button("Recommencer"):
+                st.session_state.game_started = False
+                st.session_state.current_index = 0
+                st.rerun()
