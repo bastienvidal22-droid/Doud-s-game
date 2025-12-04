@@ -9,6 +9,24 @@ st.set_page_config(page_title="Doud's Game", page_icon="💿", layout="centered"
 # --- CSS INJECTION (Amélioration Esthétique) ---
 st.markdown("""
 <style>
+/* NOUVEAU: FOND D'IMAGE */
+/* Cible le conteneur principal de l'application pour le fond */
+[data-testid="stAppViewContainer"] {
+    background-image: url("https://images.unsplash.com/photo-1549490349-8643362247b5?fit=crop&w=1400&q=80"); 
+    background-size: cover; 
+    background-repeat: no-repeat; 
+    background-attachment: fixed; 
+}
+
+/* Règle l'opacité du contenu principal pour que l'image de fond soit visible */
+[data-testid="stHeader"] {
+    background: rgba(0,0,0,0); /* Rend l'en-tête de Streamlit transparent */
+}
+.stApp {
+    background: rgba(0,0,0,0.5); /* Optionnel: fonce légèrement le contenu */
+}
+
+
 /* 1. Customizing Containers */
 .stAlert {
     border-radius: 12px;
@@ -99,7 +117,7 @@ def extract_video_id(url):
 if 'game_started' not in st.session_state:
     st.session_state.game_started = False
 if 'current_index' not in st.session_state:
-    st.session_state.current_index = 0
+    st.session_session_state.current_index = 0
 if 'my_last_add' not in st.session_state:
     st.session_state.my_last_add = None
 if 'last_user_name' not in st.session_state:
@@ -230,7 +248,7 @@ if not st.session_state.game_started:
                 st.session_state.my_last_add = None
                 st.rerun()
                 
-        # --- Bouton de lancement (LOGIQUE REPRISE RESTAURÉE) ---
+        # --- Bouton de lancement ---
         if is_host and len(playlist) > 0:
             st.markdown("---")
             
@@ -302,17 +320,17 @@ else:
             """
             components.html(html_code, height=480)
             
-            # --- Boutons Suivant et Revenir au menu (MODIFIÉ : Ratio 3:1 et inversion) ---
-            col_next, col_back = st.columns([3, 1])
+            # --- Boutons Suivant et Revenir au menu ---
+            col_back, col_next = st.columns([1, 2])
             
-            with col_next:
-                if st.button("⏭️ SUIVANT", type="primary", use_container_width=True):
-                    st.session_state.current_index += 1
-                    st.rerun()
-
             with col_back:
                 if st.button("⏪ REVENIR AU MENU", use_container_width=True):
                     st.session_state.game_started = False
+                    st.rerun()
+
+            with col_next:
+                if st.button("⏭️ SUIVANT", type="primary", use_container_width=True):
+                    st.session_state.current_index += 1
                     st.rerun()
         else:
             st.balloons()
