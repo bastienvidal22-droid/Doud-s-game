@@ -17,13 +17,15 @@ except:
 BASE_URL = f"https://api.jsonbin.io/v3/b/{BIN_ID}"
 HEADERS = {"X-Master-Key": API_KEY, "Content-Type": "application/json"}
 
-# --- FONCTIONS CLOUD ---
+# --- FONCTIONS CLOUD (AVEC FILTRAGE DU MARQUEUR DE RESET) ---
 @st.cache_data(ttl=5) # Met les données en cache pour 5 secondes max
 def load_playlist():
     try:
         response = requests.get(BASE_URL, headers=HEADERS)
         if response.status_code == 200:
-            return response.json().get("record", [])
+            full_list = response.json().get("record", [])
+            # NOUVEAU : On filtre l'entrée de reset si elle existe
+            return [item for item in full_list if item.get('reset') != True]
         else:
             st.error(f"Erreur de lecture Cloud (Code: {response.status_code}).")
             return []
@@ -51,7 +53,7 @@ if 'current_index' not in st.session_state:
 if 'my_last_add' not in st.session_state:
     st.session_state.my_last_add = None
 
-# --- SIDEBAR (LOGIQUE RAZ AMÉLIORÉE) ---
+# --- SIDEBAR (LOGIQUE RAZ CONTOURNÉE) ---
 with st.sidebar:
     st.header("☁️ Zone Hôte")
     password = st.text_input("Mot de passe Admin", type="password")
@@ -63,24 +65,25 @@ with st.sidebar:
         # Le code d'effacement est conditionnel
         if st.button("🗑️ RAZ Playlist (Urgence)"):
             
-            # Tente de sauvegarder la liste vide. Affiche une erreur si 429.
-            success = save_playlist([]) 
+            # NOUVEAU : Envoie une liste non-vide (pour éviter le Code 400) mais vide de titres.
+            success = save_playlist([{"reset": True}]) 
             
             if success:
                 # Si la sauvegarde a réussi (Code 200/201), on vide TOUT
                 st.cache_data.clear() 
                 for key in st.session_state.keys():
-                    del st.session_state[key]
+                    # On évite de supprimer le mot de passe s'il est utilisé comme key dans session_state
+                    if key not in ['password']: 
+                        del st.session_state[key]
                 st.rerun()
             else:
-                # Si la sauvegarde a échoué (Code 429 ou 403), on laisse l'erreur s'afficher.
-                # L'utilisateur doit attendre et recliquer manuellement.
+                # Si la sauvegarde a échoué (Code 400, 429 ou 403), on laisse l'erreur s'afficher.
                 pass 
 
 st.title("☁️ Blind Test Party")
 
 # -------------------------------------------------------------
-# LOGIQUE DE COMPTAGE (Correction du bug "1 titre")
+# LOGIQUE DE COMPTAGE 
 # -------------------------------------------------------------
 playlist_brut = load_playlist()
 
@@ -194,3 +197,11 @@ else:
                 st.session_state.game_started = False
                 st.session_state.current_index = 0
                 st.rerun()
+
+# --- FONCTION D'EXTRACTION YOUTUBE (non modifiée) ---
+def extract_video_id(url):
+    if not url: return None
+    if "shorts/" in url: return url.split("shorts/")[1].split("?")[0]
+    elif "youtu.be/" in url: return url.split("youtu.be/")[1].split("?")[0]
+    elif "v=" in url: return url.split("v=")[1].split("&")[0]
+    return None
