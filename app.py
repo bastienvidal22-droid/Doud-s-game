@@ -25,9 +25,9 @@ h1 {
     font-weight: 800;
 }
 
-/* 3. Main Container Styling (Moins de padding en haut pour remonter le titre) */
+/* 3. Main Container Styling (FIX 1: Espace pour l'icône CD) */
 div.block-container {
-    padding-top: 1rem; /* Modifié de 2rem à 1rem */
+    padding-top: 1.5rem; /* Augmenté à 1.5rem pour éviter le clipping */
     padding-bottom: 2rem;
     max-width: 750px;
 }
@@ -40,6 +40,13 @@ div.block-container {
     margin-bottom: 30px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.4);
 }
+
+/* 5. Customizing the Success Messages */
+.stSuccess {
+    background-color: #0b2e1d !important; 
+    border-left: 5px solid #28a745 !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -62,7 +69,6 @@ def load_playlist():
         response = requests.get(BASE_URL, headers=HEADERS)
         if response.status_code == 200:
             full_data = response.json().get("record", {})
-            # On extrait la liste de l'objet {"playlist_data": [...]}
             return [item for item in full_data.get("playlist_data", []) if item.get('setup') != 'temp']
         else:
             st.error(f"Erreur de lecture Cloud (Code: {response.status_code}).")
@@ -73,9 +79,9 @@ def load_playlist():
     return []
 
 def save_playlist(new_playlist):
-    # On enveloppe la liste dans un objet pour satisfaire le serveur (fix Code 400)
     payload = {"playlist_data": new_playlist}
     response = requests.put(BASE_URL, json=payload, headers=HEADERS)
+    
     if response.status_code not in [200, 201, 204]:
         st.error(f"❌ ÉCHEC DE SAUVEGARDE (Code: {response.status_code}).")
         st.warning("Vérifiez la Master Key sur JSONBin.")
@@ -138,7 +144,7 @@ else:
 # -------------------------------------------------------------
 
 
-# === PHASE 1 : AJOUT (UX AMÉLIORÉE) ===
+# === PHASE 1 : AJOUT ===
 if not st.session_state.game_started:
     
     # Boîte d'information centrale pour le compteur
@@ -233,7 +239,7 @@ if not st.session_state.game_started:
                     st.session_state.game_started = True
                     st.rerun()
 
-# === PHASE 2 : JEU (Améliorations UI/UX du jeu) ===
+# === PHASE 2 : JEU ===
 else:
     if not is_host:
         st.warning("Regardez l'écran géant (Ordi de l'hôte) !")
@@ -254,21 +260,28 @@ else:
             <style>
                 .wrapper {{ width: 100%; height: 350px; background: #000; border-radius: 15px; overflow: hidden; margin-bottom: 15px; }}
                 iframe {{ width: 100%; height: 100%; border: 0; filter: blur(40px); transform: scale(1.1); transition: filter 0.8s; }}
-                .btn {{ background: #333; color: white; border: 1px solid #555; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; margin: 5px; }}
-                .btn:hover {{ background: #444; }}
-                #rep {{ opacity: 0; color: #4CAF50; font-size: 20px; font-weight: bold; text-align: center; transition: opacity 1s; margin-top: 10px; }}
+                .btn-game {{ 
+                    background: #FF5733; color: white; border: none; 
+                    padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; margin: 5px; 
+                    box-shadow: 0 3px 5px rgba(0,0,0,0.3); transition: background 0.3s;
+                }}
+                .btn-game:hover {{ background: #CC4422; }}
+                #rep {{ 
+                    text-align: center; font-size: 2em; font-weight: bold; color: #4CAF50; 
+                    margin-top: 15px; padding-bottom: 15px; /* AJOUT D'UN PADDING POUR ÉVITER LA COUPE */
+                    opacity: 0; transition: opacity 1s; 
+                }}
             </style>
             <div class="wrapper"><iframe id="vid" src="{embed_url}" allow="autoplay; encrypted-media"></iframe></div>
             <div style="text-align:center;">
-                <button class="btn" onclick="document.getElementById('vid').style.filter='blur(0px)'">👁️ TITRE</button>
-                <button class="btn" onclick="document.getElementById('rep').style.opacity='1'">👤 QUI ?</button>
+                <button class="btn-game" onclick="document.getElementById('vid').style.filter='blur(0px)'">👁️ TITRE</button>
+                <button class="btn-game" onclick="document.getElementById('rep').style.opacity='1'">👤 QUI ?</button>
             </div>
             <div id="rep">C'est {track['user']} !</div>
             """
-            # Réduit la hauteur pour rapprocher le bouton "Suivant"
-            components.html(html_code, height=450) 
+            components.html(html_code, height=480) # Hauteur de 480 pour accommodation
             
-            # --- Boutons Suivant et Revenir au menu (nouvelle disposition) ---
+            # --- Boutons Suivant et Revenir au menu ---
             col_back, col_next = st.columns(2)
             
             with col_back:
@@ -280,7 +293,6 @@ else:
                 if st.button("⏭️ SUIVANT", type="primary", use_container_width=True):
                     st.session_state.current_index += 1
                     st.rerun()
-            
         else:
             st.balloons()
             st.success("Playlist terminée !")
