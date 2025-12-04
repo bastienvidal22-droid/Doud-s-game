@@ -46,6 +46,8 @@ if 'current_index' not in st.session_state:
     st.session_state.current_index = 0
 if 'my_last_add' not in st.session_state:
     st.session_state.my_last_add = None
+if 'last_submitted_name' not in st.session_state:
+    st.session_state.last_submitted_name = '' # Sauvegarde le prénom ici
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -63,15 +65,13 @@ with st.sidebar:
 st.title("☁️ Blind Test Party")
 
 # -------------------------------------------------------------
-# NOUVELLE LOGIQUE DE COMPTAGE ICI (Correction du bug "1 titre")
+# LOGIQUE DE COMPTAGE (Correction du bug "1 titre")
 # -------------------------------------------------------------
 playlist_brut = load_playlist()
 
-# Si ce n'est pas une liste (c'est le dict {"test": "ok"}), on corrige
 if isinstance(playlist_brut, dict):
     playlist = []
     current_count = 0
-    # On force la RAZ du Bin aussi pour que la prochaine lecture soit propre
     save_playlist([]) 
 else:
     playlist = playlist_brut
@@ -84,16 +84,23 @@ if not st.session_state.game_started:
     # Le st.info utilise maintenant le nouveau 'current_count'
     st.info(f"Playlist collaborative en ligne. Déjà {current_count} titres !") 
     
-    with st.form("ajout"):
+    # On utilise clear_on_submit=True et on passe le dernier nom en 'value'
+    with st.form("ajout", clear_on_submit=True): 
         c1, c2 = st.columns([1, 2])
-        with c1: name = st.text_input("Prénom")
-        with c2: link = st.text_input("Lien YouTube")
         
-        if st.form_submit_button("Envoyer au Cloud 🚀"):
+        # Le nom est pré-rempli avec la dernière valeur soumise
+        with c1: name = st.text_input("Prénom", value=st.session_state.last_submitted_name, key="name_input")
+        
+        # Le lien sera effacé automatiquement
+        with c2: link = st.text_input("Lien YouTube", key="link_input") 
+        
+        if st.form_submit_button("Rajouter à la Playlist 🚀"):
             if name and link and (vid := extract_video_id(link)):
-                entry = {"user": name, "id": vid}
                 
-                # On utilise la variable 'playlist' nettoyée par la nouvelle logique
+                # IMPORTANT : On sauvegarde le nom soumis pour le prochain formulaire
+                st.session_state.last_submitted_name = name 
+                
+                entry = {"user": name, "id": vid}
                 playlist.append(entry)
                 
                 save_playlist(playlist)
@@ -101,6 +108,8 @@ if not st.session_state.game_started:
                 st.success("Sauvegardé !")
                 time.sleep(1)
                 st.rerun()
+            else:
+                st.error("Remplissez les deux champs avec un lien YouTube valide.")
 
     if st.session_state.my_last_add:
         st.caption(f"Ton dernier ajout : {st.session_state.my_last_add['user']}")
@@ -136,6 +145,7 @@ else:
             embed_url = f"https://www.youtube.com/embed/{track['id']}?autoplay=1&controls=1&showinfo=0&rel=0"
             user_name = track['user']
 
+            # Code HTML/JS pour le No-Cut (Fluidité maximale)
             html_code = f"""
             <style>
                 .wrapper {{ width: 100%; height: 350px; background: #000; border-radius: 15px; overflow: hidden; margin-bottom: 15px; }}
