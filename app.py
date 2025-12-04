@@ -17,21 +17,33 @@ except:
 BASE_URL = f"https://api.jsonbin.io/v3/b/{BIN_ID}"
 HEADERS = {"X-Master-Key": API_KEY, "Content-Type": "application/json"}
 
-# --- FONCTIONS CLOUD (AVEC GESTION DU CACHE) ---
-# On utilise st.cache_data pour éviter de surcharger l'API de JSONBin à chaque interaction
+# --- FONCTIONS CLOUD CORRIGÉES AVEC DEBUG HTTP ---
 @st.cache_data(ttl=5) # Met les données en cache pour 5 secondes max
 def load_playlist():
+    # Charge les données depuis JSONBin
     try:
         response = requests.get(BASE_URL, headers=HEADERS)
         if response.status_code == 200:
             return response.json().get("record", [])
-    except:
+        # AJOUT DEBUG : Si la lecture échoue, on signale
+        else:
+            st.error(f"Erreur de lecture Cloud (Code: {response.status_code}).")
+            return []
+    except Exception as e:
+        st.error(f"Erreur de connexion au Cloud: {e}")
         return []
     return []
 
 def save_playlist(new_playlist):
     # Enregistre la playlist sur le cloud
-    requests.put(BASE_URL, json=new_playlist, headers=HEADERS)
+    response = requests.put(BASE_URL, json=new_playlist, headers=HEADERS)
+    
+    # AJOUT DEBUG : Vérification de la permission d'écriture
+    if response.status_code not in [200, 201, 204]: # Codes de succès
+        st.error(f"❌ ÉCHEC DE SAUVEGARDE (Code: {response.status_code}).")
+        st.warning("Vérifiez la Master Key sur JSONBin. (Code 403 = Droits refusés)")
+        return False
+    return True
 
 def extract_video_id(url):
     if not url: return None
