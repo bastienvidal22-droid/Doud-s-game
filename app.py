@@ -17,15 +17,13 @@ except:
 BASE_URL = f"https://api.jsonbin.io/v3/b/{BIN_ID}"
 HEADERS = {"X-Master-Key": API_KEY, "Content-Type": "application/json"}
 
-# --- FONCTIONS CLOUD CORRIGÉES AVEC DEBUG HTTP ---
+# --- FONCTIONS CLOUD ---
 @st.cache_data(ttl=5) # Met les données en cache pour 5 secondes max
 def load_playlist():
-    # Charge les données depuis JSONBin
     try:
         response = requests.get(BASE_URL, headers=HEADERS)
         if response.status_code == 200:
             return response.json().get("record", [])
-        # AJOUT DEBUG : Si la lecture échoue, on signale
         else:
             st.error(f"Erreur de lecture Cloud (Code: {response.status_code}).")
             return []
@@ -38,19 +36,12 @@ def save_playlist(new_playlist):
     # Enregistre la playlist sur le cloud
     response = requests.put(BASE_URL, json=new_playlist, headers=HEADERS)
     
-    # AJOUT DEBUG : Vérification de la permission d'écriture
-    if response.status_code not in [200, 201, 204]: # Codes de succès
+    # Retourne True si succès (200, 201, 204), False sinon
+    if response.status_code not in [200, 201, 204]:
         st.error(f"❌ ÉCHEC DE SAUVEGARDE (Code: {response.status_code}).")
         st.warning("Vérifiez la Master Key sur JSONBin. (Code 403 = Droits refusés)")
         return False
     return True
-
-def extract_video_id(url):
-    if not url: return None
-    if "shorts/" in url: return url.split("shorts/")[1].split("?")[0]
-    elif "youtu.be/" in url: return url.split("youtu.be/")[1].split("?")[0]
-    elif "v=" in url: return url.split("v=")[1].split("&")[0]
-    return None
 
 # --- STATE ---
 if 'game_started' not in st.session_state:
@@ -60,7 +51,7 @@ if 'current_index' not in st.session_state:
 if 'my_last_add' not in st.session_state:
     st.session_state.my_last_add = None
 
-# --- SIDEBAR (MODIFIÉE POUR UN RESET TOTAL) ---
+# --- SIDEBAR (LOGIQUE RAZ AMÉLIORÉE) ---
 with st.sidebar:
     st.header("☁️ Zone Hôte")
     password = st.text_input("Mot de passe Admin", type="password")
@@ -69,18 +60,22 @@ with st.sidebar:
     if is_host:
         st.success("Connecté en tant que DJ !")
         
-        # LOGIQUE DE RESET AMÉLIORÉE (VIDAGE DU CACHE)
+        # Le code d'effacement est conditionnel
         if st.button("🗑️ RAZ Playlist (Urgence)"):
-            save_playlist([]) 
             
-            # Vider le cache de la fonction load_playlist()
-            st.cache_data.clear() 
+            # Tente de sauvegarder la liste vide. Affiche une erreur si 429.
+            success = save_playlist([]) 
             
-            # Vider TOUTES les variables de session et redémarrer
-            for key in st.session_state.keys():
-                del st.session_state[key]
-                
-            st.rerun()
+            if success:
+                # Si la sauvegarde a réussi (Code 200/201), on vide TOUT
+                st.cache_data.clear() 
+                for key in st.session_state.keys():
+                    del st.session_state[key]
+                st.rerun()
+            else:
+                # Si la sauvegarde a échoué (Code 429 ou 403), on laisse l'erreur s'afficher.
+                # L'utilisateur doit attendre et recliquer manuellement.
+                pass 
 
 st.title("☁️ Blind Test Party")
 
@@ -158,6 +153,10 @@ else:
     if not is_host:
         st.warning("Regardez l'écran géant (Ordi de l'hôte) !")
     else:
+        if 'shuffled_playlist' not in st.session_state:
+             st.session_state.shuffled_playlist = playlist.copy()
+             random.shuffle(st.session_state.shuffled_playlist)
+             
         if st.session_state.current_index < len(st.session_state.shuffled_playlist):
             track = st.session_state.shuffled_playlist[st.session_state.current_index]
             st.metric("Piste", f"{st.session_state.current_index + 1} / {len(st.session_state.shuffled_playlist)}")
